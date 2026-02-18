@@ -1,0 +1,27 @@
+{
+  "name": "Voice AI Platform",
+  "slug": "voice-ai-platform",
+  "description": "Complete voice AI assistant platform. Users click a link, talk to your AI, transcripts saved to database. Multi-tenant, embeddable widget, analytics dashboard. Self-hosted or SaaS-ready.",
+  "long_description": "Turn any business into an AI-powered voice assistant platform. Customers share a link — visitors click and instantly talk to a custom AI assistant powered by ElevenLabs voices and any LLM (OpenAI, Claude, DeepSeek). Every conversation is transcribed and stored. Built-in analytics dashboard shows conversation history, sentiment, peak hours. Multi-tenant architecture supports unlimited assistants with custom personalities, knowledge bases, and voice selection. Includes embeddable widget for any website. Perfect for medical offices, real estate, e-commerce support, education, and call centers.",
+  "price": 399.99,
+  "category": "ai-tools",
+  "tags": ["voice-ai", "conversational-ai", "elevenlabs", "speech-to-text", "text-to-speech", "multi-tenant", "saas", "customer-support"],
+  "tech_stack": ["Python", "FastAPI", "Next.js", "ElevenLabs", "PostgreSQL", "WebSocket", "LiteLLM"],
+  "features": [
+    "Shareable voice chat links — anyone can talk to your AI",
+    "Real-time STT → LLM → TTS pipeline (sub-2s latency)",
+    "Full transcript storage with search and export",
+    "Multi-tenant — unlimited AI assistants per account",
+    "Custom personalities, system prompts, and knowledge bases",
+    "20+ ElevenLabs voices with multilingual support",
+    "Embeddable widget (<script> tag for any website)",
+    "Analytics dashboard — conversations, sentiment, peak hours",
+    "Push-to-talk and continuous listening modes",
+    "Audio visualizer with real-time waveform",
+    "Multi-provider LLM support via LiteLLM (100+ models)",
+    "Webhook notifications for new conversations",
+    "REST API for programmatic access",
+    "Docker deployment with one command",
+    "Stripe-ready subscription billing hooks"
+  ]
+}

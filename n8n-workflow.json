@@ -1,0 +1,283 @@
+{
+  "name": "Voice AI Assistant Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-chat",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "webhook-receive",
+      "name": "Webhook - Receive Audio",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/speech-to-text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{ $env.ELEVENLABS_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "audio",
+              "parameterType": "formBinaryData",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model_id",
+              "value": "scribe_v1"
+            }
+          ]
+        }
+      },
+      "id": "stt-elevenlabs",
+      "name": "STT - ElevenLabs Scribe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.text }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-transcript",
+      "name": "Has Transcript?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OPENAI_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a helpful AI voice assistant. Keep responses concise (1-3 sentences) for natural voice conversation. Be friendly and professional.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{ $('STT - ElevenLabs Scribe').item.json.text }}\"\n    }\n  ],\n  \"max_tokens\": 200,\n  \"temperature\": 0.7\n}"
+      },
+      "id": "llm-openai",
+      "name": "LLM - Generate Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.elevenlabs.io/v1/text-to-speech/{{ $env.ELEVENLABS_VOICE_ID || 'cjVigY5qzO86Huf0OWal' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{ $env.ELEVENLABS_API_KEY }}"
+            },
+            {
+              "name": "Accept",
+              "value": "audio/mpeg"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $json.choices[0].message.content }}\",\n  \"model_id\": \"eleven_multilingual_v2\",\n  \"voice_settings\": {\n    \"stability\": 0.5,\n    \"similarity_boost\": 0.75,\n    \"style\": 0.5,\n    \"use_speaker_boost\": true\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "tts-elevenlabs",
+      "name": "TTS - ElevenLabs Voice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "conversations",
+        "columns": "user_text,ai_response,voice_id,model,created_at",
+        "values": "={{ $('STT - ElevenLabs Scribe').item.json.text }}|={{ $('LLM - Generate Response').item.json.choices[0].message.content }}|={{ $env.ELEVENLABS_VOICE_ID || 'cjVigY5qzO86Huf0OWal' }}|=gpt-4o-mini|={{ new Date().toISOString() }}"
+      },
+      "id": "save-to-db",
+      "name": "Save Transcript to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1250, 450],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"transcript\": \"{{ $('STT - ElevenLabs Scribe').item.json.text }}\",\n  \"response\": \"{{ $('LLM - Generate Response').item.json.choices[0].message.content }}\",\n  \"audio_url\": \"{{ $json.url || '' }}\",\n  \"tokens\": {{ $('LLM - Generate Response').item.json.usage.total_tokens || 0 }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"error\": \"No speech detected in audio\", \"transcript\": \"\"}"
+      },
+      "id": "respond-error",
+      "name": "Respond - No Speech",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1000, 450]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WEBHOOK_NOTIFICATION_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"event\": \"new_conversation\",\n  \"user_said\": \"{{ $('STT - ElevenLabs Scribe').item.json.text }}\",\n  \"ai_replied\": \"{{ $('LLM - Generate Response').item.json.choices[0].message.content }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "notify-webhook",
+      "name": "Notify Owner (Optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1500, 450],
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Audio": {
+      "main": [
+        [
+          {
+            "node": "STT - ElevenLabs Scribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STT - ElevenLabs Scribe": {
+      "main": [
+        [
+          {
+            "node": "Has Transcript?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Transcript?": {
+      "main": [
+        [
+          {
+            "node": "LLM - Generate Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - No Speech",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM - Generate Response": {
+      "main": [
+        [
+          {
+            "node": "TTS - ElevenLabs Voice",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Transcript to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TTS - ElevenLabs Voice": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Transcript to DB": {
+      "main": [
+        [
+          {
+            "node": "Notify Owner (Optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "voice-ai"
+    },
+    {
+      "name": "elevenlabs"
+    },
+    {
+      "name": "automation"
+    }
+  ]
+}
