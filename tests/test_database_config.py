@@ -21,6 +21,12 @@ class DatabaseConfigurationTests(unittest.TestCase):
         self.assertEqual(url.host, "db")
         self.assertEqual(url.database, "voice_ai")
 
+    def test_default_database_url_is_a_sqlalchemy_sqlite_url(self):
+        with patch.dict(os.environ, {}, clear=True):
+            url = build_database_url()
+
+        self.assertEqual(url.get_backend_name(), "sqlite")
+
 
 if __name__ == "__main__":
     unittest.main()

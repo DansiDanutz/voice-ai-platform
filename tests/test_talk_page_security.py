@@ -41,6 +41,18 @@ class TalkPageSecurityTests(unittest.TestCase):
         self.assertIn(r'\u003c/script\u003e', page)
         self.assertIn("document.createTextNode(text)", page)
 
+    def test_nullable_greeting_renders_without_server_error(self):
+        assistant = SimpleNamespace(
+            name="Assistant",
+            slug="assistant",
+            greeting=None,
+            is_active=True,
+        )
+
+        page = talk_page(assistant.slug, db=FakeDatabase(assistant))
+
+        self.assertIn('<div class="greeting"></div>', page)
+
 
 if __name__ == "__main__":
     unittest.main()

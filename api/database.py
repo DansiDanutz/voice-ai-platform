@@ -1,7 +1,7 @@
 """Database connection and session management."""
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import sessionmaker
 from .models import Base
 
@@ -10,11 +10,11 @@ def build_database_url():
     """Build a database URL without interpolating raw credentials into text."""
     configured_url = os.getenv("DATABASE_URL")
     if configured_url:
-        return configured_url
+        return make_url(configured_url)
 
     host = os.getenv("DB_HOST")
     if not host:
-        return "sqlite:///./voice_ai.db"
+        return make_url("sqlite:///./voice_ai.db")
 
     password = os.getenv("POSTGRES_PASSWORD")
     if not password:
@@ -33,7 +33,7 @@ def build_database_url():
 DATABASE_URL = build_database_url()
 
 # Support both PostgreSQL and SQLite
-if DATABASE_URL.startswith("sqlite"):
+if DATABASE_URL.get_backend_name() == "sqlite":
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
     engine = create_engine(DATABASE_URL)

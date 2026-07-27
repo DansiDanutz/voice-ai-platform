@@ -174,7 +174,7 @@ def talk_page(slug: str, db: Session = Depends(get_db)):
     if not assistant:
         raise HTTPException(404, "Assistant not found or inactive")
     assistant_name = html.escape(assistant.name, quote=True)
-    assistant_greeting = html.escape(assistant.greeting, quote=True)
+    assistant_greeting = html.escape(assistant.greeting or "", quote=True)
     assistant_name_json = json_for_inline_script(assistant.name)
     assistant_slug_json = json_for_inline_script(assistant.slug)
     return f"""<!DOCTYPE html>
