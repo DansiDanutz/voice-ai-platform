@@ -28,7 +28,7 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q main.py api tests
       - name: Validate shell entrypoints
-        run: bash -n run.sh setup.sh
+        run: bash -n run.sh setup.sh scripts/rotate-postgres-password.sh
       - name: Validate Compose configuration
         run: |
           cp .env.example .env

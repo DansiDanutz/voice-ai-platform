@@ -41,6 +41,22 @@ cp .env.example .env
 docker-compose up -d
 ```
 
+### Existing Docker volumes
+
+PostgreSQL only reads `POSTGRES_PASSWORD` when it initializes an empty data
+directory. To rotate an existing `pgdata` volume before restarting the app:
+
+```bash
+# 1. Set the new POSTGRES_PASSWORD in .env, then start only the database.
+docker compose up -d --no-deps db
+
+# 2. Update the existing voice_ai role through the local database socket.
+./scripts/rotate-postgres-password.sh
+
+# 3. Start the app with the matching password.
+docker compose up -d app
+```
+
 ## Usage
 
 ```bash

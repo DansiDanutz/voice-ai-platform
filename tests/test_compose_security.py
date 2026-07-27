@@ -4,6 +4,8 @@ import unittest
 
 COMPOSE_FILE = Path(__file__).parents[1] / "docker-compose.yml"
 DOCKERIGNORE_FILE = Path(__file__).parents[1] / ".dockerignore"
+ROTATION_SCRIPT = Path(__file__).parents[1] / "scripts" / "rotate-postgres-password.sh"
+README_FILE = Path(__file__).parents[1] / "README.md"
 
 
 class ComposeSecurityTests(unittest.TestCase):
@@ -22,6 +24,14 @@ class ComposeSecurityTests(unittest.TestCase):
         self.assertIn(".env", dockerignore)
         self.assertIn(".env.*", dockerignore)
         self.assertIn("!.env.example", dockerignore)
+
+    def test_existing_volume_has_an_explicit_password_rotation_path(self):
+        script = ROTATION_SCRIPT.read_text()
+        readme = README_FILE.read_text()
+
+        self.assertIn("ALTER ROLE voice_ai", script)
+        self.assertIn(":'new_password'", script)
+        self.assertIn("rotate-postgres-password.sh", readme)
 
 
 if __name__ == "__main__":
