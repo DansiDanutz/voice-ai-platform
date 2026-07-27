@@ -27,6 +27,21 @@ class DatabaseConfigurationTests(unittest.TestCase):
 
         self.assertEqual(url.get_backend_name(), "sqlite")
 
+    def test_compose_coordinates_override_legacy_database_url(self):
+        env = {
+            "DATABASE_URL": "postgresql://legacy:old@localhost/legacy",
+            "DB_HOST": "db",
+            "POSTGRES_DB": "voice_ai",
+            "POSTGRES_USER": "voice_ai",
+            "POSTGRES_PASSWORD": "new-password",
+        }
+
+        with patch.dict(os.environ, env, clear=True):
+            url = build_database_url()
+
+        self.assertEqual(url.host, "db")
+        self.assertEqual(url.password, "new-password")
+
 
 if __name__ == "__main__":
     unittest.main()

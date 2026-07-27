@@ -8,26 +8,26 @@ from .models import Base
 
 def build_database_url():
     """Build a database URL without interpolating raw credentials into text."""
+    host = os.getenv("DB_HOST")
+    if host:
+        password = os.getenv("POSTGRES_PASSWORD")
+        if not password:
+            raise RuntimeError("POSTGRES_PASSWORD is required when DB_HOST is set")
+
+        return URL.create(
+            drivername="postgresql+psycopg2",
+            username=os.getenv("POSTGRES_USER", "voice_ai"),
+            password=password,
+            host=host,
+            port=int(os.getenv("DB_PORT", "5432")),
+            database=os.getenv("POSTGRES_DB", "voice_ai"),
+        )
+
     configured_url = os.getenv("DATABASE_URL")
     if configured_url:
         return make_url(configured_url)
 
-    host = os.getenv("DB_HOST")
-    if not host:
-        return make_url("sqlite:///./voice_ai.db")
-
-    password = os.getenv("POSTGRES_PASSWORD")
-    if not password:
-        raise RuntimeError("POSTGRES_PASSWORD is required when DB_HOST is set")
-
-    return URL.create(
-        drivername="postgresql+psycopg2",
-        username=os.getenv("POSTGRES_USER", "voice_ai"),
-        password=password,
-        host=host,
-        port=int(os.getenv("DB_PORT", "5432")),
-        database=os.getenv("POSTGRES_DB", "voice_ai"),
-    )
+    return make_url("sqlite:///./voice_ai.db")
 
 
 DATABASE_URL = build_database_url()
