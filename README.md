@@ -117,7 +117,8 @@ Runs daily at 9 AM. Fetches 24h stats from database, gets recent conversations, 
 **Import:** Open n8n → Settings → Import Workflow → paste JSON
 
 **Required n8n credentials:**
-- PostgreSQL connection
+- PostgreSQL connection (`localhost:5432` for host-installed n8n; the port is
+  bound to loopback and is not exposed to the network)
 - SMTP (for email digest)
 - Environment variables: `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, `ELEVENLABS_VOICE_ID`
 
