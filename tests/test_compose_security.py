@@ -35,6 +35,8 @@ class ComposeSecurityTests(unittest.TestCase):
 
         self.assertIn("ALTER ROLE voice_ai", script)
         self.assertIn(":'new_password'", script)
+        self.assertIn("pg_isready", script)
+        self.assertIn("{1..30}", script)
         self.assertIn("rotate-postgres-password.sh", readme)
 
     def test_ci_and_image_use_the_same_exact_dependency_lock(self):
