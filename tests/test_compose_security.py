@@ -13,8 +13,8 @@ class ComposeSecurityTests(unittest.TestCase):
         self.assertNotIn("POSTGRES_PASSWORD: changeme", compose)
         self.assertIn("POSTGRES_PASSWORD:?", compose)
         self.assertNotIn('"5432:5432"', compose)
-        self.assertIn("DATABASE_URL:", compose)
-        self.assertIn("@db:5432/voice_ai", compose)
+        self.assertNotIn("DATABASE_URL:", compose)
+        self.assertIn("DB_HOST: db", compose)
 
     def test_docker_build_context_excludes_local_secrets(self):
         dockerignore = DOCKERIGNORE_FILE.read_text().splitlines()

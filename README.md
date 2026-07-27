@@ -37,7 +37,7 @@ python3 main.py
 
 ```bash
 cp .env.example .env
-# Edit .env. POSTGRES_PASSWORD is required and must be URL-encoded.
+# Edit .env. POSTGRES_PASSWORD is required.
 docker-compose up -d
 ```
 

@@ -5,7 +5,10 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://voice_ai:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/voice_ai
+      DB_HOST: db
+      POSTGRES_DB: voice_ai
+      POSTGRES_USER: voice_ai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     depends_on:
       - db
     restart: unless-stopped
