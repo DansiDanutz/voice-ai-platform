@@ -2,6 +2,8 @@
 import os
 import uuid
 import base64
+import html
+import json
 from datetime import datetime
 from contextlib import asynccontextmanager
 
@@ -30,10 +32,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "*").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials="*" not in cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -150,15 +157,30 @@ def delete_assistant(assistant_id: str, tenant: Tenant = Depends(get_tenant_by_a
 
 # ── Public Voice Chat (shareable link) ──────────────────
 
+def json_for_inline_script(value: str) -> str:
+    """Serialize text without allowing it to terminate the surrounding script."""
+    return (
+        json.dumps(value)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
 @app.get("/talk/{slug}", response_class=HTMLResponse)
 def talk_page(slug: str, db: Session = Depends(get_db)):
     assistant = db.query(Assistant).filter(Assistant.slug == slug, Assistant.is_active == True).first()
     if not assistant:
         raise HTTPException(404, "Assistant not found or inactive")
+    assistant_name = html.escape(assistant.name, quote=True)
+    assistant_greeting = html.escape(assistant.greeting or "", quote=True)
+    assistant_name_json = json_for_inline_script(assistant.name)
+    assistant_slug_json = json_for_inline_script(assistant.slug)
     return f"""<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Talk to {assistant.name}</title>
+<title>Talk to {assistant_name}</title>
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
 body {{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#0f172a; color:#e2e8f0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; }}
@@ -179,22 +201,27 @@ h1 {{ font-size:1.5rem; margin-bottom:0.5rem; }}
 .greeting {{ background:#1e293b; border:1px solid #334155; padding:1rem; border-radius:12px; margin-bottom:1.5rem; }}
 </style></head><body>
 <div class="container">
-  <h1>🎙️ {assistant.name}</h1>
+  <h1>🎙️ {assistant_name}</h1>
   <p class="subtitle">Tap to talk</p>
-  <div class="greeting">{assistant.greeting}</div>
+  <div class="greeting">{assistant_greeting}</div>
   <button class="mic-btn idle" id="mic" onclick="toggleRecording()">🎤</button>
   <div class="status" id="status">Tap the microphone to start</div>
   <div class="messages" id="messages"></div>
 </div>
 <script>
-const SLUG = "{assistant.slug}";
+const SLUG = {assistant_slug_json};
+const AI_NAME = {assistant_name_json};
 let recording = false, mediaRecorder = null, chunks = [], convId = null;
 const mic = document.getElementById('mic'), status = document.getElementById('status'), msgs = document.getElementById('messages');
 
 function addMsg(text, role) {{
   const d = document.createElement('div');
   d.className = 'msg ' + role;
-  d.innerHTML = '<div class="role">' + (role==='user'?'You':'{assistant.name}') + '</div>' + text;
+  const roleLabel = document.createElement('div');
+  roleLabel.className = 'role';
+  roleLabel.textContent = role === 'user' ? 'You' : AI_NAME;
+  d.appendChild(roleLabel);
+  d.appendChild(document.createTextNode(text));
   msgs.appendChild(d);
   msgs.scrollTop = msgs.scrollHeight;
 }}
@@ -262,7 +289,10 @@ async def voice_chat(slug: str, audio: UploadFile = File(...), conversation_id: 
     history = []
     conv = None
     if conversation_id:
-        conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        conv = db.query(Conversation).filter(
+            Conversation.id == conversation_id,
+            Conversation.assistant_id == assistant.id,
+        ).first()
         if conv:
             for msg in db.query(Message).filter(Message.conversation_id == conv.id).order_by(Message.created_at).limit(20).all():
                 history.append({"role": msg.role, "content": msg.text})
@@ -313,7 +343,10 @@ async def text_chat(slug: str, data: TextChatRequest, db: Session = Depends(get_
     history = []
     conv = None
     if data.conversation_id:
-        conv = db.query(Conversation).filter(Conversation.id == data.conversation_id).first()
+        conv = db.query(Conversation).filter(
+            Conversation.id == data.conversation_id,
+            Conversation.assistant_id == assistant.id,
+        ).first()
         if conv:
             for msg in db.query(Message).filter(Message.conversation_id == conv.id).order_by(Message.created_at).limit(20).all():
                 history.append({"role": msg.role, "content": msg.text})

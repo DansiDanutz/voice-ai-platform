@@ -37,8 +37,24 @@ python3 main.py
 
 ```bash
 cp .env.example .env
-# Edit .env
+# Edit .env. POSTGRES_PASSWORD is required.
 docker-compose up -d
+```
+
+### Existing Docker volumes
+
+PostgreSQL only reads `POSTGRES_PASSWORD` when it initializes an empty data
+directory. To rotate an existing `pgdata` volume before restarting the app:
+
+```bash
+# 1. Set the new POSTGRES_PASSWORD in .env, then start only the database.
+docker compose up -d --no-deps db
+
+# 2. Update the existing voice_ai role through the local database socket.
+./scripts/rotate-postgres-password.sh
+
+# 3. Start the app with the matching password.
+docker compose up -d app
 ```
 
 ## Usage
@@ -101,7 +117,8 @@ Runs daily at 9 AM. Fetches 24h stats from database, gets recent conversations, 
 **Import:** Open n8n → Settings → Import Workflow → paste JSON
 
 **Required n8n credentials:**
-- PostgreSQL connection
+- PostgreSQL connection (`localhost:5432` for host-installed n8n; the port is
+  bound to loopback and is not exposed to the network)
 - SMTP (for email digest)
 - Environment variables: `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, `ELEVENLABS_VOICE_ID`
 
